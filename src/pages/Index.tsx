@@ -3,15 +3,6 @@ import { useParams } from "react-router-dom";
 import { SearchSection } from "@/components/SearchSection";
 import { NewsGrid } from "@/components/NewsGrid";
 
-interface NewsItem {
-  id: number;
-  title: string;
-  description: string;
-  image: string;
-  category: string;
-  readCount: number;
-}
-
 interface IndexProps {
   sortByTrending?: boolean;
 }

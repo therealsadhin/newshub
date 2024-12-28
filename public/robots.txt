@@ -1,0 +1,21 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://newshub.com/sitemap.xml
+
+# Prevent crawling of admin and API routes
+Disallow: /api/
+Disallow: /admin/
+Disallow: /private/
+
+# Allow crawling of important sections
+Allow: /articles/
+Allow: /category/
+Allow: /about/
+Allow: /terms/
+Allow: /privacy/
+
+# Crawl delay to prevent server overload
+Crawl-delay: 10

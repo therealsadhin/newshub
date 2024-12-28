@@ -1,26 +1,20 @@
 export interface NewsArticle {
-  id: number;
+  id: string;
   title: string;
   description: string;
   content: string;
   image_url: string;
   category: string;
-  read_count: number;
+  source: string;
   author: string;
+  url: string;
+  read_count: number;
   created_at: string;
   updated_at: string;
 }
 
-export interface NewsAPIResponse {
-  news: {
-    title: string;
-    description: string;
-    content: string;
-    urlToImage: string;
-    category: string;
-    author: string;
-    publishedAt: string;
-  }[];
+export interface NewsResponse {
+  articles: NewsArticle[];
 }
 
 export interface Category {

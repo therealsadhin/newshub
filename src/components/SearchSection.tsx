@@ -51,10 +51,10 @@ export const SearchSection = ({ onSearch, onCategorySelect, selectedCategory }: 
     <div className="container py-6 space-y-6">
       <div className="space-y-4">
         <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground dark:text-gray-400" />
           <Input
             placeholder="Search news..."
-            className="pl-9 rounded-full"
+            className="pl-9 rounded-full bg-background dark:bg-gray-800 text-foreground dark:text-white"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -65,7 +65,11 @@ export const SearchSection = ({ onSearch, onCategorySelect, selectedCategory }: 
             <Button
               key={filter}
               variant={selectedCategory === filter ? "default" : "outline"}
-              className="rounded-full text-sm transition-all duration-200 hover:scale-105"
+              className={`rounded-full text-sm transition-all duration-200 hover:scale-105 ${
+                selectedCategory === filter
+                  ? "bg-primary text-primary-foreground dark:bg-primary dark:text-primary-foreground"
+                  : "text-foreground dark:text-gray-300 dark:hover:text-white"
+              }`}
               onClick={() => handleFilterSelect(filter)}
             >
               {filter}

@@ -1,31 +1,165 @@
-import { supabase } from '@/lib/supabase';
-import { NewsArticle } from '@/types/news';
+import { supabase } from "@/lib/supabase";
+import { NewsArticle } from "@/types/news";
 
-export const newsService = {
-  async syncNewsFromAPI() {
+const GNEWS_API_KEY = '0ba8b864c082d3824e2cc4429af93688';
+const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
+
+const CATEGORIES = [
+  'general',
+  'world',
+  'nation',
+  'business',
+  'technology',
+  'entertainment',
+  'sports',
+  'science',
+  'health'
+];
+
+const SAMPLE_ARTICLES: NewsArticle[] = [
+  {
+    id: 1,
+    title: "AI Revolution in 2024: What to Expect",
+    description: "Artificial Intelligence continues to transform industries. Here's what experts predict for 2024.",
+    content: "The AI landscape is rapidly evolving with new developments in machine learning, natural language processing, and computer vision...",
+    image_url: "https://images.unsplash.com/photo-1677442136019-21780ecad995",
+    category: "Technology",
+    author: "Tech Insider",
+    read_count: 150,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 2,
+    title: "Global Climate Summit 2024",
+    description: "World leaders gather to address climate change challenges and set new environmental goals.",
+    content: "The annual climate summit brings together representatives from over 190 countries to discuss urgent environmental issues...",
+    image_url: "https://images.unsplash.com/photo-1620321023374-d1a68fbc720d",
+    category: "World",
+    author: "Environmental Report",
+    read_count: 120,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 3,
+    title: "Space Exploration Breakthrough",
+    description: "NASA announces major discovery in the search for extraterrestrial life.",
+    content: "Scientists at NASA have made a groundbreaking discovery that could revolutionize our understanding of life in the universe...",
+    image_url: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa",
+    category: "Science",
+    author: "Space Weekly",
+    read_count: 200,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
+
+class NewsService {
+  lastFetchTime: number;
+
+  constructor() {
+    this.lastFetchTime = 0;
+  }
+
+  async initializeWithSampleData() {
     try {
-      console.log('Fetching news from API...');
-      const { data, error } = await supabase.functions.invoke('fetch-news', {
-        body: { limit: 100 }
-      });
+      // Check if we already have articles
+      const { count } = await supabase
+        .from('articles')
+        .select('*', { count: 'exact', head: true });
+
+      if (!count || count === 0) {
+        console.log('Initializing with sample articles...');
+        
+        const { error } = await supabase
+          .from('articles')
+          .insert(SAMPLE_ARTICLES);
+
+        if (error) {
+          console.error('Error inserting sample articles:', error);
+          throw error;
+        }
+
+        console.log('Successfully added sample articles');
+      }
+    } catch (error) {
+      console.error('Error in initializeWithSampleData:', error);
+      throw error;
+    }
+  }
+
+  async syncNewsFromAPI(force = false) {
+    try {
+      // Check if we have articles and if the last fetch was recent
+      const { count } = await supabase
+        .from('articles')
+        .select('*', { count: 'exact', head: true });
+
+      const now = Date.now();
+      const shouldFetch = force || 
+        !count || 
+        count === 0 || 
+        (now - this.lastFetchTime) > CACHE_DURATION;
+
+      if (!shouldFetch) {
+        console.log('Using cached articles...');
+        return true;
+      }
+
+      console.log('Fetching news from GNews API...');
       
-      if (error) {
-        console.error('Error from Edge function:', error);
-        throw error;
+      let allArticles = [];
+
+      // Fetch articles from each category
+      for (const category of CATEGORIES) {
+        try {
+          console.log(`Fetching ${category} news...`);
+          const response = await fetch(
+            `https://gnews.io/api/v4/top-headlines?category=${category}&lang=en&country=us&max=10&apikey=${GNEWS_API_KEY}`
+          );
+
+          if (response.status === 429) {
+            console.log(`Rate limit reached for ${category}, skipping...`);
+            continue;
+          }
+
+          if (!response.ok) {
+            console.error(`Error fetching ${category} news:`, response.statusText);
+            continue;
+          }
+
+          const data = await response.json();
+          
+          if (data && Array.isArray(data.articles)) {
+            // Add category to each article
+            const articlesWithCategory = data.articles.map(article => ({
+              ...article,
+              category: category.charAt(0).toUpperCase() + category.slice(1) // Capitalize category
+            }));
+            allArticles = [...allArticles, ...articlesWithCategory];
+          }
+
+          // Wait a bit between requests to avoid rate limits
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.error(`Error fetching ${category} news:`, error);
+          continue;
+        }
       }
 
-      if (!data || !Array.isArray(data.articles)) {
-        console.error('Invalid response from Edge function:', data);
-        throw new Error('Invalid response from news API');
+      if (allArticles.length === 0) {
+        console.log('No articles received from API');
+        return false;
       }
 
-      console.log('Received news articles:', data.articles.length);
+      console.log('Received news articles:', allArticles.length);
 
-      // Clear existing articles
+      // Only clear existing articles if we got new ones
       const { error: clearError } = await supabase
         .from('articles')
         .delete()
-        .neq('id', 0); // Delete all articles
+        .neq('id', 0);
 
       if (clearError) {
         console.error('Error clearing articles:', clearError);
@@ -34,10 +168,9 @@ export const newsService = {
 
       // Insert articles in batches to avoid timeout
       const batchSize = 20;
-      const articles = data.articles;
       
-      for (let i = 0; i < articles.length; i += batchSize) {
-        const batch = articles.slice(i, i + batchSize);
+      for (let i = 0; i < allArticles.length; i += batchSize) {
+        const batch = allArticles.slice(i, i + batchSize);
         const { error: insertError } = await supabase
           .from('articles')
           .insert(
@@ -45,9 +178,9 @@ export const newsService = {
               title: article.title || 'Untitled',
               description: article.description || '',
               content: article.content || '',
-              image_url: article.urlToImage || 'https://via.placeholder.com/800x400',
+              image_url: article.image || 'https://via.placeholder.com/800x400',
               category: article.category || 'General',
-              author: article.author || 'Unknown',
+              author: article.source?.name || 'Unknown',
               read_count: 0,
               created_at: article.publishedAt || new Date().toISOString(),
               updated_at: new Date().toISOString()
@@ -56,17 +189,27 @@ export const newsService = {
 
         if (insertError) {
           console.error(`Error inserting batch ${i}-${i + batchSize}:`, insertError);
-          continue; // Continue with next batch instead of failing completely
+          continue;
         }
       }
 
+      this.lastFetchTime = now;
       console.log('Successfully synced news articles');
       return true;
     } catch (error) {
       console.error('Error in syncNewsFromAPI:', error);
+      // If we have cached data, use it instead of failing
+      const { count } = await supabase
+        .from('articles')
+        .select('*', { count: 'exact', head: true });
+      
+      if (count && count > 0) {
+        console.log('Error occurred but using cached data...');
+        return true;
+      }
       throw error;
     }
-  },
+  }
 
   async getArticles({ 
     category = '', 
@@ -76,8 +219,15 @@ export const newsService = {
     limit = 12 
   }) {
     try {
-      // Always sync with API first
-      await this.syncNewsFromAPI();
+      // Initialize with sample data if needed
+      await this.initializeWithSampleData();
+
+      // Try to sync but don't fail if it doesn't work
+      try {
+        await this.syncNewsFromAPI();
+      } catch (error) {
+        console.error('Error syncing news, will try to use cached data:', error);
+      }
 
       let query = supabase
         .from('articles')
@@ -105,7 +255,7 @@ export const newsService = {
 
       if (error) {
         console.error('Error fetching articles:', error);
-        throw error;
+        throw new Error("Failed to fetch articles");
       }
 
       return { 
@@ -116,7 +266,7 @@ export const newsService = {
       console.error('Error in getArticles:', error);
       throw error;
     }
-  },
+  }
 
   async getArticleById(id: number) {
     try {
@@ -128,7 +278,7 @@ export const newsService = {
 
       if (error) {
         console.error('Error fetching article by ID:', error);
-        throw error;
+        throw new Error("Failed to fetch article");
       }
 
       return data as NewsArticle;
@@ -136,7 +286,7 @@ export const newsService = {
       console.error('Error in getArticleById:', error);
       throw error;
     }
-  },
+  }
 
   async incrementReadCount(id: number) {
     try {
@@ -144,13 +294,13 @@ export const newsService = {
 
       if (error) {
         console.error('Error incrementing read count:', error);
-        throw error;
+        throw new Error("Failed to update read count");
       }
     } catch (error) {
       console.error('Error in incrementReadCount:', error);
       throw error;
     }
-  },
+  }
 
   async getCategories() {
     try {
@@ -170,4 +320,6 @@ export const newsService = {
       throw error;
     }
   }
-};
+}
+
+export const newsService = new NewsService();
