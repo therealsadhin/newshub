@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -23,14 +24,30 @@ const filters = [
 ];
 
 export const SearchSection = () => {
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+    // Implement search logic here
+    console.log("Searching for:", value);
+  };
+
+  const handleCategorySelect = (value: string) => {
+    setSelectedCategory(value);
+    // Implement filter logic here
+    console.log("Selected category:", value);
+  };
+
   return (
     <div className="container py-6 space-y-6">
       <div className="flex gap-4 overflow-x-auto pb-2">
         {categories.map((category) => (
           <Button
             key={category}
-            variant="outline"
-            className="whitespace-nowrap"
+            variant={selectedCategory === category ? "default" : "outline"}
+            className="rounded-full whitespace-nowrap"
+            onClick={() => handleCategorySelect(category)}
           >
             {category}
           </Button>
@@ -42,16 +59,21 @@ export const SearchSection = () => {
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search news..."
-            className="pl-9"
+            className="pl-9 rounded-full"
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
           />
         </div>
-        <Select>
-          <SelectTrigger className="w-full sm:w-[200px]">
+        <Select onValueChange={handleCategorySelect}>
+          <SelectTrigger className="w-full sm:w-[200px] rounded-full">
             <SelectValue placeholder="Filter by category" />
           </SelectTrigger>
           <SelectContent>
             {filters.map((filter) => (
-              <SelectItem key={filter} value={filter.toLowerCase().replace(" ", "-")}>
+              <SelectItem 
+                key={filter} 
+                value={filter.toLowerCase().replace(" ", "-")}
+              >
                 {filter}
               </SelectItem>
             ))}

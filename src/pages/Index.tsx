@@ -1,6 +1,7 @@
 import { Header } from "@/components/Header";
 import { SearchSection } from "@/components/SearchSection";
 import { NewsGrid } from "@/components/NewsGrid";
+import { Footer } from "@/components/Footer";
 
 const Index = () => {
   return (
@@ -10,6 +11,7 @@ const Index = () => {
         <SearchSection />
         <NewsGrid />
       </main>
+      <Footer />
     </div>
   );
 };
