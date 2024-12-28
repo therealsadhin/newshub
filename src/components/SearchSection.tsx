@@ -1,18 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
 const categories = ["Trending", "Politics", "Sports", "Business"];
-const filters = [
+const filterCategories = [
   "Entertainment",
   "World news",
   "Politics",
@@ -30,34 +23,32 @@ export const SearchSection = () => {
   const [selectedFilter, setSelectedFilter] = useState<string>("");
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Notify when filter changes
-    if (selectedFilter) {
-      toast({
-        title: "Filter Applied",
-        description: `Filtered by: ${selectedFilter}`,
-      });
-    }
-  }, [selectedFilter, toast]);
-
   const handleSearch = (value: string) => {
     setSearchQuery(value);
-    console.log("Searching for:", value);
-    // You would typically make an API call here to fetch filtered results
+    if (value.length > 0) {
+      toast({
+        title: "Searching",
+        description: `Searching for: ${value}`,
+      });
+    }
   };
 
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
-    console.log("Selected category:", category);
     toast({
       title: "Category Selected",
       description: `Viewing ${category} news`,
     });
   };
 
-  const handleFilterSelect = (value: string) => {
-    setSelectedFilter(value);
-    // You would typically make an API call here to fetch filtered results
+  const handleFilterSelect = (filter: string) => {
+    setSelectedFilter(filter === selectedFilter ? "" : filter);
+    if (filter !== selectedFilter) {
+      toast({
+        title: "Filter Applied",
+        description: `Filtered by: ${filter}`,
+      });
+    }
   };
 
   return (
@@ -75,8 +66,8 @@ export const SearchSection = () => {
         ))}
       </div>
       
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
+      <div className="space-y-4">
+        <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search news..."
@@ -85,22 +76,19 @@ export const SearchSection = () => {
             onChange={(e) => handleSearch(e.target.value)}
           />
         </div>
-        <Select onValueChange={handleFilterSelect} value={selectedFilter}>
-          <SelectTrigger className="w-full sm:w-[200px] rounded-full">
-            <SelectValue placeholder="Filter by category" />
-          </SelectTrigger>
-          <SelectContent>
-            {filters.map((filter) => (
-              <SelectItem 
-                key={filter} 
-                value={filter.toLowerCase().replace(" ", "-")}
-                className="cursor-pointer"
-              >
-                {filter}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        
+        <div className="flex flex-wrap gap-2">
+          {filterCategories.map((filter) => (
+            <Button
+              key={filter}
+              variant={selectedFilter === filter ? "default" : "outline"}
+              className="rounded-full text-sm transition-all duration-200 hover:scale-105"
+              onClick={() => handleFilterSelect(filter)}
+            >
+              {filter}
+            </Button>
+          ))}
+        </div>
       </div>
     </div>
   );
