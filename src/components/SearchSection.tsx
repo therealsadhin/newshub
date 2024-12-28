@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,21 +16,28 @@ const filterCategories = [
   "Science journalism",
 ];
 
-export const SearchSection = () => {
+interface SearchSectionProps {
+  onSearch: (query: string) => void;
+  onCategorySelect: (category: string) => void;
+  selectedCategory: string;
+}
+
+export const SearchSection = ({ onSearch, onCategorySelect, selectedCategory }: SearchSectionProps) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState<string>("");
   const { toast } = useToast();
 
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-    // Here you would typically trigger the search functionality
-    console.log("Searching for:", value);
-  };
+  // Debounce search to avoid too many updates
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onSearch(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, onSearch]);
 
   const handleFilterSelect = (filter: string) => {
-    const newFilter = filter === selectedFilter ? "" : filter;
-    setSelectedFilter(newFilter);
-    console.log("Filter selected:", newFilter);
+    const newFilter = filter === selectedCategory ? "" : filter;
+    onCategorySelect(newFilter);
     
     if (newFilter) {
       toast({
@@ -49,7 +56,7 @@ export const SearchSection = () => {
             placeholder="Search news..."
             className="pl-9 rounded-full"
             value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         
@@ -57,7 +64,7 @@ export const SearchSection = () => {
           {filterCategories.map((filter) => (
             <Button
               key={filter}
-              variant={selectedFilter === filter ? "default" : "outline"}
+              variant={selectedCategory === filter ? "default" : "outline"}
               className="rounded-full text-sm transition-all duration-200 hover:scale-105"
               onClick={() => handleFilterSelect(filter)}
             >

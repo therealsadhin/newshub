@@ -1,82 +1,125 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { newsService } from "@/services/newsService";
+import { NewsArticle } from "@/types/news";
+import { useToast } from "@/hooks/use-toast";
 
-// Extended mock data with 50 items
-const generateNewsItems = () => {
-  const categories = [
-    "Science journalism",
-    "World news",
-    "Technology",
-    "Politics",
-    "Business",
-    "Health",
-    "Entertainment",
-    "Sports",
-  ];
+interface NewsGridProps {
+  searchQuery: string;
+  selectedCategory: string;
+  sortByTrending?: boolean;
+}
 
-  const images = [
-    "https://images.unsplash.com/photo-1516849841032-87cbac4d88f7?auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80",
-  ];
+export const NewsGrid = ({ searchQuery, selectedCategory, sortByTrending = false }: NewsGridProps) => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  return Array.from({ length: 50 }, (_, i) => ({
-    id: i + 1,
-    title: `News Article ${i + 1}: ${Math.random().toString(36).substring(7)}`,
-    description: `This is a detailed description for news article ${
-      i + 1
-    }. It contains important information about the topic and provides context for readers to understand the story better. The content is designed to be informative and engaging.`,
-    image: images[Math.floor(Math.random() * images.length)],
-    category: categories[Math.floor(Math.random() * categories.length)],
-    readCount: Math.floor(Math.random() * 1000),
-  }));
-};
+  useEffect(() => {
+    const fetchArticles = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const { articles } = await newsService.getArticles({
+          category: selectedCategory,
+          searchQuery,
+          sortByTrending,
+        });
+        setArticles(articles);
+      } catch (err) {
+        console.error('Error fetching articles:', err);
+        setError('Failed to load articles');
+        toast({
+          title: "Error",
+          description: "Failed to load articles. Please try again later.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
 
-const newsItems = generateNewsItems();
+    fetchArticles();
+  }, [searchQuery, selectedCategory, sortByTrending, toast]);
 
-export const NewsGrid = () => {
-  const [items, setItems] = useState(newsItems.map(item => ({
-    ...item,
-    readCount: item.readCount,
-  })));
-
-  const handleReadClick = (id: number) => {
-    setItems(prevItems =>
-      prevItems.map(item =>
-        item.id === id ? { ...item, readCount: item.readCount + 1 } : item
-      )
-    );
+  const handleArticleClick = async (article: NewsArticle) => {
+    try {
+      await newsService.incrementReadCount(article.id);
+      navigate(`/article/${article.id}`);
+    } catch (err) {
+      console.error('Error incrementing read count:', err);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="container py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Card key={index} className="cursor-pointer overflow-hidden">
+              <div className="aspect-video bg-muted animate-pulse" />
+              <CardContent className="p-4 space-y-2">
+                <div className="h-4 bg-muted rounded animate-pulse" />
+                <div className="h-4 bg-muted rounded w-2/3 animate-pulse" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container py-8 text-center">
+        <p className="text-lg text-muted-foreground">{error}</p>
+      </div>
+    );
+  }
+
+  if (articles.length === 0) {
+    return (
+      <div className="container py-8 text-center">
+        <p className="text-lg text-muted-foreground">No articles found matching your criteria.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {items.map((item) => (
-          <Card 
-            key={item.id} 
-            className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => handleReadClick(item.id)}
+        {articles.map((article) => (
+          <Card
+            key={article.id}
+            className="cursor-pointer overflow-hidden hover:shadow-lg transition-shadow"
+            onClick={() => handleArticleClick(article)}
           >
-            <CardHeader className="p-0">
+            <div className="aspect-video relative">
               <img
-                src={item.image}
-                alt={item.title}
-                className="w-full h-48 object-cover"
+                src={article.image_url}
+                alt={article.title}
+                className="absolute inset-0 w-full h-full object-cover"
               />
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="flex justify-between items-center mb-2">
-                <div className="text-sm text-muted-foreground">{item.category}</div>
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Eye className="h-4 w-4" />
-                  <span>{item.readCount}</span>
-                </div>
+            </div>
+            <CardContent className="p-4 space-y-2">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>{article.category}</span>
+                <span className="flex items-center gap-1">
+                  <Eye className="w-4 h-4" />
+                  {article.read_count}
+                </span>
               </div>
-              <h3 className="text-lg font-semibold mb-2 line-clamp-2">{item.title}</h3>
-              <p className="text-muted-foreground line-clamp-3">{item.description}</p>
+              <h3 className="font-semibold line-clamp-2">{article.title}</h3>
+              <p className="text-muted-foreground text-sm line-clamp-2">
+                {article.description}
+              </p>
+              <div className="text-sm text-muted-foreground">
+                {new Date(article.created_at).toLocaleDateString()}
+              </div>
             </CardContent>
           </Card>
         ))}

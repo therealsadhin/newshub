@@ -1,21 +1,33 @@
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/ThemeProvider";
+import { useNavigate } from "react-router-dom";
 
 const categories = ["Trending", "Politics", "Sports", "Business"];
 
 export const Header = () => {
   const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
 
   const handleCategoryClick = (category: string) => {
-    console.log("Selected category:", category);
+    if (category === "Trending") {
+      navigate("/trending");
+    } else {
+      navigate(`/category/${category.toLowerCase()}`);
+    }
   };
 
   return (
     <header className="sticky top-0 z-50 w-full">
       <div className="border-b bg-background/80 backdrop-blur-lg">
         <div className="container flex h-16 items-center">
-          <div className="text-2xl font-bold mr-8">NewsHub</div>
+          <h1 
+            onClick={() => navigate("/")}
+            className="text-2xl font-bold cursor-pointer hover:text-primary transition-colors mr-8"
+          >
+            NewsHub
+          </h1>
+          
           <div className="flex-1 flex items-center gap-2 overflow-x-auto">
             {categories.map((category) => (
               <Button
@@ -28,6 +40,7 @@ export const Header = () => {
               </Button>
             ))}
           </div>
+
           <Button
             variant="ghost"
             size="icon"
